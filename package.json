@@ -1,0 +1,8 @@
+{
+  "name": "shopify-upload",
+  "version": "1.0.0",
+  "description": "Shopify image upload serverless function",
+  "dependencies": {
+    "form-data": "^4.0.4"
+  }
+}
