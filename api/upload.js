@@ -1,7 +1,7 @@
 // api/upload.js
 // Place this file in your Vercel project at: /api/upload.js
 
-export const config = {
+const config = {
   api: {
     bodyParser: {
       sizeLimit: '10mb',
@@ -9,7 +9,7 @@ export const config = {
   },
 };
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // CORS headers - MUST be set for all responses including errors
   const corsHeaders = {
     'Access-Control-Allow-Credentials': 'true',
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
         {
           filename: filename,
           mimeType: contentType,
-          resource: "FILE",
+          resource: "IMAGE",
           fileSize: buffer.length.toString()
         }
       ]
@@ -138,7 +138,6 @@ export default async function handler(req, res) {
     const stagedTarget = stagedData.data.stagedUploadsCreate.stagedTargets[0];
     
     // Step 2: Upload file to staged URL
-    const FormData = (await import('form-data')).default;
     const formData = new FormData();
     
     // Add parameters first
@@ -148,8 +147,7 @@ export default async function handler(req, res) {
     
     // Add file last
     formData.append('file', buffer, {
-      filename: filename,
-      contentType: contentType
+      filename: filename
     });
 
     const uploadResponse = await fetch(stagedTarget.url, {
@@ -191,7 +189,7 @@ export default async function handler(req, res) {
       files: [
         {
           alt: filename,
-          contentType: "FILE",
+          contentType: "IMAGE",
           originalSource: stagedTarget.resourceUrl
         }
       ]
@@ -240,3 +238,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
+module.exports = handler;
