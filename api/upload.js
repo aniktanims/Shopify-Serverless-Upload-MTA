@@ -1,10 +1,12 @@
 // api/upload.js
 // Place this file in your Vercel project at: /api/upload.js
 
+const FormData = require('form-data');
+
 const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+      sizeLimit: '12mb',
     },
   },
 };
@@ -15,7 +17,7 @@ async function handler(req, res) {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
-    'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+    'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
   };
 
   // Set CORS headers for ALL responses
@@ -40,18 +42,11 @@ async function handler(req, res) {
 
     // Check environment variables FIRST
     if (!shop || !token) {
-      console.error('Missing environment variables:', { 
-        hasShop: !!shop, 
-        hasToken: !!token 
-      });
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Server configuration error - missing credentials',
-        details: 'Environment variables not configured. Please set SHOPIFY_SHOP and SHOPIFY_ADMIN_TOKEN in Vercel dashboard.'
-      });
+      console.error('Missing environment variables:', { hasShop: !!shop, hasToken: !!token });
+      return res.status(500).json({ success: false, error: 'Server configuration error - missing credentials', details: 'Environment variables not configured. Please set SHOPIFY_SHOP and SHOPIFY_ADMIN_TOKEN in Vercel dashboard.' });
     }
 
-    const { filename, image } = req.body;
+    const { filename, image } = req.body || {};
 
     if (!filename || !image) {
       return res.status(400).json({ success: false, error: 'Missing filename or image data' });
@@ -63,23 +58,18 @@ async function handler(req, res) {
     }
 
     // Extract base64 data and content type
-    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    const matches = image.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
       return res.status(400).json({ success: false, error: 'Invalid base64 format' });
     }
 
     const contentType = matches[1];
     const base64Data = matches[2];
-    
+
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, 'base64');
 
-    console.log('Processing upload:', { 
-      filename, 
-      contentType, 
-      size: buffer.length,
-      shop: shop 
-    });
+    console.log('Processing upload:', { filename, contentType, size: buffer.length, shop: shop });
 
     // Step 1: Create staged upload
     const stagedUploadMutation = `
@@ -106,137 +96,105 @@ async function handler(req, res) {
         {
           filename: filename,
           mimeType: contentType,
-          resource: "IMAGE",
-          fileSize: buffer.length.toString()
-        }
-      ]
+          resource: 'IMAGE',
+          fileSize: buffer.length.toString(),
+        },
+      ],
     };
 
-    const stagedResponse = await fetch(`https://${shop}/admin/api/2024-10/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': token,
-      },
-      body: JSON.stringify({
-        query: stagedUploadMutation,
-        variables: stagedUploadVariables,
-      }),
-    });
-
-    const stagedData = await stagedResponse.json();
-
-    if (stagedData.errors || stagedData.data?.stagedUploadsCreate?.userErrors?.length > 0) {
-      console.error('Staged upload error:', stagedData);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to create staged upload',
-        details: stagedData.errors || stagedData.data.stagedUploadsCreate.userErrors
+    // Call Shopify GraphQL to get staged upload target
+    let stagedData;
+    try {
+      const stagedRes = await fetch(`https://${shop}/admin/api/2024-10/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token,
+        },
+        body: JSON.stringify({ query: stagedUploadMutation, variables: stagedUploadVariables }),
       });
+
+      const stagedText = await stagedRes.text();
+      try {
+        stagedData = JSON.parse(stagedText);
+      } catch (err) {
+        console.error('staged upload JSON parse failed', { status: stagedRes.status, text: stagedText });
+        return res.status(500).json({ success: false, error: 'Failed to create staged upload', details: 'staged upload response not JSON' });
+      }
+
+      if (stagedData.errors || stagedData.data?.stagedUploadsCreate?.userErrors?.length) {
+        console.error('staged upload returned errors', stagedData);
+        return res.status(500).json({ success: false, error: 'Failed to create staged upload', details: stagedData.errors || stagedData.data.stagedUploadsCreate.userErrors });
+      }
+    } catch (err) {
+      console.error('stagedUploadsCreate fetch failed', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, error: 'Failed to create staged upload', details: 'network error during stagedUploadsCreate' });
     }
 
-    const stagedTarget = stagedData.data.stagedUploadsCreate.stagedTargets[0];
-    
+    const stagedTarget = stagedData.data.stagedUploadsCreate.stagedTargets && stagedData.data.stagedUploadsCreate.stagedTargets[0];
+    if (!stagedTarget || !stagedTarget.url) {
+      console.error('No staged target in response', stagedData);
+      return res.status(500).json({ success: false, error: 'Failed to create staged upload', details: 'no staged target returned' });
+    }
+
     // Step 2: Upload file to staged URL
-    const formData = new FormData();
-    
-    // Add parameters first
-    stagedTarget.parameters.forEach(param => {
-      formData.append(param.name, param.value);
-    });
-    
-    // Add file last
-    formData.append('file', buffer, {
-      filename: filename
+    const headers = {};
+    (stagedTarget.parameters || []).forEach(p => {
+      headers[p.name] = p.value;
     });
 
-    const uploadResponse = await fetch(stagedTarget.url, {
-      method: 'POST',
-      body: formData,
-      headers: formData.getHeaders(),
-    });
-
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('Upload to S3 failed:', uploadResponse.status, errorText);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to upload file to storage',
-        details: errorText
-      });
+    // Log headers (mask sensitive values)
+    try {
+      const headerKeys = Object.keys(headers);
+      console.log('Outgoing PUT headers:', headerKeys);
+    } catch (err) {
+      console.warn('Could not list PUT headers', err && err.message ? err.message : err);
     }
 
-    // Step 3: Create file in Shopify
+    try {
+      const uploadRes = await fetch(stagedTarget.url, { method: 'PUT', body: buffer, headers });
+      if (!uploadRes.ok) {
+        const t = await uploadRes.text();
+        console.error('PUT upload to staged target failed', uploadRes.status, t);
+        return res.status(500).json({ success: false, error: 'Failed to upload file to storage', details: t, status: uploadRes.status });
+      }
+    } catch (err) {
+      console.error('network error uploading to staged target (PUT)', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, error: 'Failed to upload file to storage', details: 'network error during upload to staged target' });
+    }
+
+    // Step 3: Create file in Shopify using staged resource URL
     const fileCreateMutation = `
       mutation fileCreate($files: [FileCreateInput!]!) {
         fileCreate(files: $files) {
-          files {
-            ... on GenericFile {
-              id
-              url
-              alt
-            }
-          }
-          userErrors {
-            field
-            message
-          }
+          files { ... on GenericFile { id url alt } }
+          userErrors { field message }
         }
       }
     `;
 
-    const fileCreateVariables = {
-      files: [
-        {
-          alt: filename,
-          contentType: "IMAGE",
-          originalSource: stagedTarget.resourceUrl
-        }
-      ]
-    };
+    const fileCreateVariables = { files: [{ alt: filename, contentType: 'IMAGE', originalSource: stagedTarget.resourceUrl }] };
 
-    const fileResponse = await fetch(`https://${shop}/admin/api/2024-10/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': token,
-      },
-      body: JSON.stringify({
-        query: fileCreateMutation,
-        variables: fileCreateVariables,
-      }),
-    });
+    try {
+      const fileRes = await fetch(`https://${shop}/admin/api/2024-10/graphql.json`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token }, body: JSON.stringify({ query: fileCreateMutation, variables: fileCreateVariables }) });
+      const fileText = await fileRes.text();
+      let fileData;
+      try { fileData = JSON.parse(fileText); } catch (err) { console.error('fileCreate response not JSON', { status: fileRes.status, text: fileText }); return res.status(500).json({ success: false, error: 'Failed to create file in Shopify', details: 'fileCreate response not JSON' }); }
+      if (fileData.errors || fileData.data?.fileCreate?.userErrors?.length) { console.error('fileCreate errors', fileData); return res.status(500).json({ success: false, error: 'Failed to create file in Shopify', details: fileData.errors || fileData.data.fileCreate.userErrors }); }
+      const createdFile = fileData.data.fileCreate.files && fileData.data.fileCreate.files[0];
+      if (!createdFile) { console.error('fileCreate returned no file', fileData); return res.status(500).json({ success: false, error: 'Failed to create file in Shopify', details: 'no file returned' }); }
 
-    const fileData = await fileResponse.json();
-
-    if (fileData.errors || fileData.data?.fileCreate?.userErrors?.length > 0) {
-      console.error('File create error:', fileData);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to create file in Shopify',
-        details: fileData.errors || fileData.data.fileCreate.userErrors
-      });
+      console.log('Upload successful:', { url: createdFile.url });
+      return res.status(200).json({ success: true, url: createdFile.url, fileId: createdFile.id, message: 'File uploaded successfully' });
+    } catch (err) {
+      console.error('fileCreate network error', err && err.message ? err.message : err);
+      return res.status(500).json({ success: false, error: 'Failed to create file in Shopify', details: 'network error during fileCreate' });
     }
-
-    const createdFile = fileData.data.fileCreate.files[0];
-
-    console.log('Upload successful:', { url: createdFile.url });
-
-    return res.status(200).json({
-      success: true,
-      url: createdFile.url,
-      fileId: createdFile.id,
-      message: 'File uploaded successfully'
-    });
-
   } catch (error) {
-    console.error('Upload error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error',
-      message: error.message 
-    });
+    console.error('Upload error:', error && error.stack ? error.stack : error);
+    return res.status(500).json({ success: false, error: 'Internal server error', message: error && error.message ? error.message : String(error) });
   }
 }
 
 module.exports = handler;
+module.exports.config = config;
