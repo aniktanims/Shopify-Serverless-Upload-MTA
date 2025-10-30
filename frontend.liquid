@@ -537,7 +537,7 @@
     uploadImageToServer();
   }
 
-  function uploadImageToServer(fileId = null) {
+  function uploadImageToServer() {
     showUploading('Uploading image to server...');
 
     const reader = new FileReader();
@@ -546,16 +546,15 @@
 
       console.log('Uploading to:', UPLOAD_ENDPOINT);
 
-      const requestBody = fileId 
-        ? { fileId } 
-        : { filename: selectedFile.name, image: imageData };
-
       fetch(UPLOAD_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          image: imageData
+        })
       })
       .then(function(response) {
         console.log('Upload response status:', response.status);
@@ -570,19 +569,10 @@
         console.log('Upload response data:', data);
         if (data.success && data.url) {
           uploadedImageUrl = data.url;
-          showSuccess('Image uploaded! Adding to cart...');
+          showSuccess('Image uploaded successfully! Adding to cart...');
           addToCart(data.url);
-        } else if (data.success && data.ready === false) {
-          // File uploaded but still processing, retry after delay
-          const retryMessage = fileId 
-            ? 'Image processing... Retrying in 3 seconds...' 
-            : 'Image uploaded, processing... Retrying in 3 seconds...';
-          showUploading(retryMessage);
-          setTimeout(function() {
-            uploadImageToServer(data.fileId); // Retry with fileId to check status
-          }, 3000);
         } else {
-          throw new Error(data.error || 'Upload failed');
+          throw new Error(data.error || 'Upload failed - no URL returned');
         }
       })
       .catch(function(error) {
@@ -593,16 +583,13 @@
       });
     };
 
-    // Only read the file if we're not checking status
-    if (!fileId) {
-      reader.onerror = function() {
-        showError('Failed to read file');
-        elements.cartBtn.disabled = false;
-        hideUploading();
-      };
+    reader.onerror = function() {
+      showError('Failed to read file');
+      elements.cartBtn.disabled = false;
+      hideUploading();
+    };
 
-      reader.readAsDataURL(selectedFile);
-    }
+    reader.readAsDataURL(selectedFile);
   }
 
   function addToCart(imageUrl) {
