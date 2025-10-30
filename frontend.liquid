@@ -329,7 +329,8 @@
   const ID = {{ ai_gen_id | json }};
   const MAX_SIZE_MB = {{ block.settings.max_file_size | default: 10 | json }};
   const PLACEHOLDER_TEXT = {{ block.settings.placeholder_text | json }};
-  {% comment %} const UPLOAD_ENDPOINT = 'https://shopify-upload-3giuf3743-mostofa-tanim-aniks-projects.vercel.app/api/upload'; {% endcomment %}
+  {% comment %} https://shopify-upload.vercel.app/api/upload; {% endcomment %}
+  
   const UPLOAD_ENDPOINT = 'https://shopify-upload.vercel.app/api/upload';
 
   let variants = [];
@@ -536,7 +537,7 @@
     uploadImageToServer();
   }
 
-  function uploadImageToServer() {
+  function uploadImageToServer(fileId = null) {
     showUploading('Uploading image to server...');
 
     const reader = new FileReader();
@@ -545,15 +546,16 @@
 
       console.log('Uploading to:', UPLOAD_ENDPOINT);
 
+      const requestBody = fileId 
+        ? { fileId } 
+        : { filename: selectedFile.name, image: imageData };
+
       fetch(UPLOAD_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          image: imageData
-        })
+        body: JSON.stringify(requestBody)
       })
       .then(function(response) {
         console.log('Upload response status:', response.status);
@@ -565,13 +567,22 @@
         });
       })
       .then(function(data) {
-        console.log('Upload successful:', data);
+        console.log('Upload response data:', data);
         if (data.success && data.url) {
           uploadedImageUrl = data.url;
           showSuccess('Image uploaded! Adding to cart...');
           addToCart(data.url);
+        } else if (data.success && data.ready === false) {
+          // File uploaded but still processing, retry after delay
+          const retryMessage = fileId 
+            ? 'Image processing... Retrying in 3 seconds...' 
+            : 'Image uploaded, processing... Retrying in 3 seconds...';
+          showUploading(retryMessage);
+          setTimeout(function() {
+            uploadImageToServer(data.fileId); // Retry with fileId to check status
+          }, 3000);
         } else {
-          throw new Error('No URL returned from upload');
+          throw new Error(data.error || 'Upload failed');
         }
       })
       .catch(function(error) {
@@ -582,13 +593,16 @@
       });
     };
 
-    reader.onerror = function() {
-      showError('Failed to read file');
-      elements.cartBtn.disabled = false;
-      hideUploading();
-    };
+    // Only read the file if we're not checking status
+    if (!fileId) {
+      reader.onerror = function() {
+        showError('Failed to read file');
+        elements.cartBtn.disabled = false;
+        hideUploading();
+      };
 
-    reader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(selectedFile);
+    }
   }
 
   function addToCart(imageUrl) {
