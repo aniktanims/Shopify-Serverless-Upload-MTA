@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Shopify image upload serverless function",
   "dependencies": {
-    "form-data": "^4.0.4"
+    "form-data": "^4.0.4",
+    "@vercel/analytics": "^1.1.1",
+    "@vercel/speed-insights": "^1.0.1"
   }
 }

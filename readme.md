@@ -14,6 +14,8 @@ This project provides a complete photo upload system for Shopify stores, allowin
 - ✅ Progress indicators and error handling
 - ✅ Mobile-responsive upload interface
 - ✅ Secure file handling with size limits
+- ✅ Vercel Analytics integration
+- ✅ Performance monitoring with Speed Insights
 
 ## Project Structure
 
@@ -52,7 +54,34 @@ SHOPIFY_SHOP=your-shop.myshopify.com
 SHOPIFY_ADMIN_TOKEN=shpat_your_admin_token_here
 ```
 
-### 3. Deploy to Vercel
+### 3. Add Vercel Analytics (Optional)
+
+For tracking and performance monitoring, the project includes Vercel Analytics and Speed Insights.
+
+If you're using Next.js, add to your `app/layout.tsx`:
+
+```tsx
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  )
+}
+```
+
+### 4. Deploy to Vercel
 
 ```bash
 vercel
@@ -70,7 +99,7 @@ Deploy to production:
 vercel --prod
 ```
 
-### 4. Get Your Upload Endpoint
+### 5. Get Your Upload Endpoint
 
 After deployment, your endpoint will be:
 ```
