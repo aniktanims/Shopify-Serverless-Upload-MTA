@@ -1,226 +1,225 @@
-# Photo Upload Solution - Deployment Guide
+# Shopify Photo Upload Solution
+
+A serverless solution for uploading customer photos to Shopify using Vercel functions and the Shopify Files API.
 
 ## Overview
-This solution uploads customer photos to Shopify Files API via a Vercel serverless function, ensuring images are properly stored and accessible in orders.
 
-## Step 1: Set Up Vercel Project
+This project provides a complete photo upload system for Shopify stores, allowing customers to upload custom images that are stored in Shopify Files and included in their orders.
 
-### 1.1 Create Project Structure
+## Features
+
+- ✅ Serverless photo upload via Vercel
+- ✅ Automatic storage in Shopify Files API
+- ✅ Order integration with custom properties
+- ✅ Progress indicators and error handling
+- ✅ Mobile-responsive upload interface
+- ✅ Secure file handling with size limits
+
+## Project Structure
+
 ```
-your-project/
+shopify-photo-upload/
 ├── api/
-│   └── upload.js          # Serverless function
-├── package.json
-├── vercel.json
-├── .gitignore
-└── .env.local            # Local development only
+│   └── upload.js          # Vercel serverless function
+├── package.json           # Project dependencies
+├── vercel.json           # Vercel configuration
+├── .gitignore           # Git ignore rules
+└── README.md            # This file
 ```
 
-### 1.2 Install Vercel CLI
+## Prerequisites
+
+- Shopify store with admin access
+- Vercel account
+- Node.js installed locally
+
+## Quick Setup
+
+### 1. Clone and Install
+
 ```bash
+git clone <your-repo-url>
+cd shopify-photo-upload
 npm install -g vercel
 ```
 
-### 1.3 Create Files
+### 2. Configure Environment Variables
 
-Create `package.json`:
-```json
-{
-  "name": "shopify-image-upload",
-  "version": "1.0.0",
-  "description": "Shopify image upload serverless function"
-}
+Create a `.env.local` file (never commit this):
+
+```env
+SHOPIFY_SHOP=your-shop.myshopify.com
+SHOPIFY_ADMIN_TOKEN=shpat_your_admin_token_here
 ```
 
-Create `vercel.json`:
-```json
-{
-  "functions": {
-    "api/upload.js": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  }
-}
-```
+### 3. Deploy to Vercel
 
-Create `.gitignore`:
-```
-.env.local
-.env*.local
-node_modules
-.vercel
-```
-
-Create `api/upload.js` - Copy the code from the "Vercel Serverless Function" artifact.
-
-## Step 2: Deploy to Vercel
-
-### 2.1 Initialize and Deploy
 ```bash
-# Navigate to your project directory
-cd your-project
-
-# Login to Vercel (if not already logged in)
-vercel login
-
-# Deploy
 vercel
 ```
 
-Follow the prompts:
-- Set up and deploy? **Y**
-- Which scope? Select your account
-- Link to existing project? **N**
-- Project name? **shopify-image-upload** (or your choice)
-- Directory? **./** (press Enter)
-- Override settings? **N**
-
-### 2.2 Set Environment Variables
-
-After deployment, add your environment variables:
+Follow the prompts to create your project, then add environment variables:
 
 ```bash
 vercel env add SHOPIFY_SHOP
-```
-Enter: `c0084a-2.myshopify.com`
-
-```bash
 vercel env add SHOPIFY_ADMIN_TOKEN
 ```
-Enter: `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`
 
-Select environments:
-- Production: **Yes**
-- Preview: **Yes**
-- Development: **Yes**
-
-### 2.3 Deploy Again (to use environment variables)
+Deploy to production:
 ```bash
 vercel --prod
 ```
 
-### 2.4 Get Your Endpoint URL
-After deployment, Vercel will show your URL:
-```
-https://your-project-name.vercel.app
-```
+### 4. Get Your Upload Endpoint
 
-Your upload endpoint will be:
+After deployment, your endpoint will be:
 ```
 https://your-project-name.vercel.app/api/upload
 ```
 
-## Step 3: Update Shopify Theme
+## Shopify Configuration
 
-### 3.1 Copy the Updated Liquid Template
-1. Go to Shopify Admin → Online Store → Themes
-2. Click "..." on your active theme → Edit code
-3. Find your custom section file (e.g., `sections/ai_gen_block_57f968a.liquid`)
-4. Replace the entire content with the code from the "Updated Photo Upload Block" artifact
+### 1. Create Custom App
 
-### 3.2 Configure the Block Settings
-1. Go to your product page in the theme editor
-2. Find the "Photo Upload" block
-3. In the block settings, find "Upload Endpoint URL"
-4. Enter your Vercel endpoint: `https://your-project-name.vercel.app/api/upload`
-5. Save
+1. Go to Shopify Admin → Settings → Apps and sales channels
+2. Click "Develop apps" → "Create an app"
+3. Add these Admin API scopes:
+   - `write_files` (required)
+   - `read_products` (optional, for validation)
+4. Install the app and copy the Admin API access token
 
-## Step 4: Test the Implementation
+### 2. Update Theme Code
 
-### 4.1 Test Upload
-1. Visit your product page
-2. Upload a test image
-3. Click "Add to Cart"
-4. Check that:
-   - Upload progress shows
-   - Success message appears
-   - Cart updates with the product
+1. Go to Online Store → Themes → Edit code
+2. Find your photo upload section/template
+3. Update the upload endpoint URL to your Vercel endpoint
+4. Ensure the form handles file uploads and custom properties
 
-### 4.2 Verify in Shopify Admin
-1. Go to Shopify Admin → Content → Files
-2. Look for your uploaded image
-3. Create a test order
-4. Check that the order shows the image URL in line item properties
+### 3. Test the Integration
 
-## Step 5: Verify Image Storage
+1. Upload a test image on your product page
+2. Add to cart and complete a test order
+3. Verify the image appears in:
+   - Cart drawer/sidebar
+   - Order details in Shopify admin
+   - Order confirmation emails
 
-### Check Order Details
-After a customer places an order:
-1. Go to Orders in Shopify Admin
-2. Open the order
-3. Click on the line item
-4. You should see:
-   - **Custom Photo**: `https://cdn.shopify.com/s/files/...` (the uploaded image URL)
-   - **Filename**: Original filename
-   - **Size**: Selected puzzle size
-   - **Description**: Customer notes (if provided)
+## API Reference
+
+### POST /api/upload
+
+Uploads an image file to Shopify Files API.
+
+**Request:**
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Body: `file` (image file)
+
+**Response:**
+```json
+{
+  "success": true,
+  "file": {
+    "url": "https://cdn.shopify.com/s/files/...",
+    "filename": "customer-upload.jpg",
+    "size": 123456
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
+```
+
+## File Requirements
+
+- **Formats:** JPG, PNG, GIF, WebP
+- **Max Size:** 20MB (configurable)
+- **Storage:** Automatic cleanup after 30 days (Shopify default)
+
+## Security Considerations
+
+- Files are stored securely in Shopify's CDN
+- Admin tokens should never be exposed client-side
+- Use environment variables for all sensitive data
+- Implement proper CORS policies if needed
 
 ## Troubleshooting
 
-### Issue: "Upload endpoint not configured"
-**Solution**: Make sure you've added your Vercel endpoint URL in the block settings.
+### Upload Fails
+- Check Vercel function logs: `vercel logs`
+- Verify environment variables are set
+- Ensure admin token has correct permissions
+- Check file size limits
 
-### Issue: "Failed to upload image"
-**Solution**: 
-1. Check Vercel logs: `vercel logs`
-2. Verify environment variables are set correctly
-3. Ensure your Shopify admin token has `write_files` permission
+### Images Not Showing in Orders
+- Verify the upload endpoint URL in your theme
+- Check that line item properties are being set correctly
+- Ensure order confirmation emails include custom properties
 
-### Issue: Images not showing in orders
-**Solution**: The image URL is stored in the "Custom Photo" property. Check your order confirmation email template includes line item properties.
+### CORS Issues
+- Add your Shopify domain to Vercel's allowed origins
+- Check that the function returns proper CORS headers
 
-## Security Best Practices
+## Cost Optimization
 
-1. **Never commit** your `.env.local` file or admin token to git
-2. **Use Vercel environment variables** for production
-3. **Rotate your admin token** periodically
-4. **Monitor Vercel logs** for suspicious activity
-
-## Shopify Admin Token Permissions
-
-Your token needs these permissions:
-- ✅ `write_files` - To upload images
-- ✅ `read_products` - Optional, for validation
-
-To update permissions:
-1. Shopify Admin → Settings → Apps and sales channels
-2. Develop apps → Your app
-3. Configuration → Admin API access scopes
-4. Add required scopes
-5. Save and reinstall the app
-
-## Cost Considerations
-
-### Vercel (Free Tier includes):
-- 100 GB bandwidth/month
+### Vercel Free Tier
+- 100GB bandwidth/month
 - 100,000 function invocations/month
-- 100 GB-hours execution time
+- 100GB-hours execution time
 
-### Shopify Files:
-- Included in your Shopify plan
-- No additional cost for file storage
+### Shopify Files
+- Included in all Shopify plans
+- No additional storage costs
+
+## Development
+
+### Local Testing
+
+```bash
+# Install dependencies
+npm install
+
+# Run locally
+vercel dev
+```
+
+### Environment Variables for Development
+
+```env
+SHOPIFY_SHOP=your-development-shop.myshopify.com
+SHOPIFY_ADMIN_TOKEN=shpat_your_dev_token
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is open source. Please use responsibly and follow Shopify's terms of service.
 
 ## Support
 
-If you encounter issues:
-1. Check Vercel logs: `vercel logs --follow`
-2. Check browser console for errors
-3. Verify the endpoint URL is correct in Shopify
-4. Test the endpoint directly with a tool like Postman
+For issues or questions:
+1. Check Vercel function logs
+2. Review Shopify Files API documentation
+3. Test with different file types and sizes
+4. Verify network connectivity
 
-## Next Steps
+## Roadmap
 
-Consider adding:
-- Image compression/optimization before upload
-- Multiple image uploads
-- Image cropping tool
-- Email notifications with uploaded images
-- Customer photo gallery
-
----
-
-**Your Setup Summary:**
-- Shop: `c0084a-2.myshopify.com`
-- Vercel Project: Deploy to get your URL
-- Endpoint: `https://[your-project].vercel.app/api/upload`
+- [ ] Image compression/optimization
+- [ ] Multiple file uploads
+- [ ] Image cropping interface
+- [ ] Customer photo galleries
+- [ ] Email notifications with images
+- [ ] Admin dashboard for uploaded images
