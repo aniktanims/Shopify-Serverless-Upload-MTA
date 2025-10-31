@@ -1,0 +1,1244 @@
+{% liquid
+  assign ai_gen_id = block.id | replace: '-', '_'
+%}
+
+<div id="photo-upload-{{ ai_gen_id }}" class="photo-upload-container">
+
+<style>
+  #photo-upload-{{ ai_gen_id }} {
+    max-width: 100%;
+    margin: 20px auto;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: {{ block.settings.text_color | default: '#2c3e50' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-title {
+    margin: 0 0 8px 0;
+    font-size: {{ block.settings.title_size | default: 28 }}px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-desc {
+    margin: 0 0 20px 0;
+    font-size: {{ block.settings.description_size | default: 16 }}px;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin: 20px 0;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-card {
+    background: {{ block.settings.background_color | default: '#ffffff' }};
+    border: 1px solid {{ block.settings.upload_border_color | default: '#e9ecef' }};
+    border-radius: {{ block.settings.border_radius | default: 12 }}px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .preview-wrap {
+    border: 2px dashed {{ block.settings.border_color | default: '#cbd5e0' }};
+    border-radius: 8px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: {{ block.settings.upload_background_color | default: '#f8f9fa' }};
+    padding: 20px;
+    text-align: center;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .preview-img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    object-fit: contain;
+    display: none;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .preview-placeholder {
+    color: {{ block.settings.placeholder_text_color | default: '#7f8c8d' }};
+    text-align: center;
+    width: 100%;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-area {
+    position: relative;
+    cursor: pointer;
+    border: 2px dashed {{ block.settings.upload_border_color | default: '#cbd5e0' }};
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    background: {{ block.settings.upload_background_color | default: '#f8f9fa' }};
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-area:hover {
+    border-color: {{ block.settings.upload_border_hover_color | default: '#3498db' }};
+    background: {{ block.settings.upload_background_hover_color | default: '#e3f2fd' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-icon {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 10px;
+    color: {{ block.settings.primary_button_color | default: '#3498db' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .file-info,
+  #photo-upload-{{ ai_gen_id }} .error-msg,
+  #photo-upload-{{ ai_gen_id }} .success-msg {
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 15px 0;
+    display: none;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .file-info {
+    background: {{ block.settings.success_color | default: '#e8f5e8' }};
+    border: 1px solid #c3e6c3;
+    color: #2d5a2d;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .error-msg {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: {{ block.settings.error_color | default: '#c33' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .success-msg {
+    background: {{ block.settings.success_color | default: '#e8f5e8' }};
+    border: 1px solid #c3e6c3;
+    color: #2d5a2d;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .form-group {
+    margin: 15px 0;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .form-input,
+  #photo-upload-{{ ai_gen_id }} .form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid {{ block.settings.input_border_color | default: '#e1e5e9' }};
+    border-radius: 6px;
+    background: {{ block.settings.background_color | default: '#ffffff' }};
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid {{ block.settings.input_border_color | default: '#e1e5e9' }};
+    border-radius: 6px;
+    background: {{ block.settings.background_color | default: '#ffffff' }};
+    font-size: 14px;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .button-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn {
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    flex: 1;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn-clear {
+    background: #ffffff;
+    color: {{ block.settings.secondary_button_text_color | default: '#6c757d' }};
+    border-color: {{ block.settings.secondary_button_border_color | default: '#dee2e6' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn-clear:hover {
+    background: {{ block.settings.secondary_button_hover_color | default: '#f8f9fa' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn-cart {
+    background: {{ block.settings.primary_button_color | default: '#3498db' }};
+    color: {{ block.settings.primary_button_text_color | default: '#ffffff' }};
+    border-color: {{ block.settings.primary_button_color | default: '#3498db' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn-cart:hover:not(:disabled) {
+    background: {{ block.settings.primary_button_hover_color | default: '#2980b9' }};
+    border-color: {{ block.settings.primary_button_hover_color | default: '#2980b9' }};
+  }
+
+  #photo-upload-{{ ai_gen_id }} .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-progress {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.04);
+    color: #222;
+    font-size: 14px;
+    margin-top: 10px;
+  }
+
+  #photo-upload-{{ ai_gen_id }} .upload-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 768px) {
+    #photo-upload-{{ ai_gen_id }} .upload-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    #photo-upload-{{ ai_gen_id }} .button-group {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="upload-wrapper">
+  {% if block.settings.title != blank %}
+    <h2 class="upload-title">{{ block.settings.title }}</h2>
+  {% endif %}
+  
+  {% if block.settings.description != blank %}
+    <p class="upload-desc">{{ block.settings.description }}</p>
+  {% endif %}
+
+  <div class="upload-grid">
+    <!-- Preview Section -->
+    <div class="upload-card">
+      <h3 class="form-label" style="margin: 0 0 15px 0; font-size: 18px;">Preview</h3>
+      <div class="preview-wrap" id="preview-container-{{ ai_gen_id }}">
+        <div class="preview-placeholder" id="placeholder-{{ ai_gen_id }}">
+          <svg class="upload-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+          </svg>
+          <p style="margin: 0; font-size: 16px;">{{ block.settings.placeholder_text | default: 'Your photo will appear here' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-card">
+      <div class="upload-area" id="upload-area-{{ ai_gen_id }}">
+        <input type="file" accept="image/*" class="upload-input" id="file-input-{{ ai_gen_id }}">
+        <svg class="upload-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+        </svg>
+        <p style="margin: 0 0 6px 0; font-weight: 600;">{{ block.settings.upload_text | default: 'Click to upload or drag and drop' }}</p>
+        <p style="margin: 0; font-size: 13px; color: #7f8c8d;">{{ block.settings.upload_subtext | default: 'JPG, PNG or GIF (max 10MB)' }}</p>
+      </div>
+
+      <div class="file-info" id="file-info-{{ ai_gen_id }}"></div>
+      <div class="error-msg" id="error-msg-{{ ai_gen_id }}"></div>
+      <div class="success-msg" id="success-msg-{{ ai_gen_id }}"></div>
+      <div class="upload-progress" id="upload-progress-{{ ai_gen_id }}" aria-hidden="true" style="display:none;">
+        <svg width="18" height="18" viewBox="0 0 50 50" class="upload-spinner" aria-hidden="true" style="vertical-align:middle;margin-right:8px;">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.4 31.4"/>
+        </svg>
+        <span class="upload-progress-text">Uploading…</span>
+      </div>
+
+      {% if block.settings.show_size_option %}
+      <div class="form-group">
+        <label class="form-label" for="size-select-{{ ai_gen_id }}">Puzzle Size</label>
+        <select class="form-select" id="size-select-{{ ai_gen_id }}">
+          <option value="50">50 pieces</option>
+          <option value="100" selected>100 pieces</option>
+          <option value="250">250 pieces</option>
+          <option value="300">300 pieces</option>
+          <option value="500">500 pieces</option>
+        </select>
+      </div>
+      {% endif %}
+
+      {% if block.settings.show_description %}
+      <div class="form-group">
+        <label class="form-label" for="desc-input-{{ ai_gen_id }}">{{ block.settings.description_label | default: 'Description / Notes for your puzzle' }}</label>
+        <textarea class="form-textarea" 
+                  id="desc-input-{{ ai_gen_id }}"
+                  placeholder="{{ block.settings.description_placeholder | default: 'Tell us anything we should know (cropping, text on puzzle, gift note, etc.)' }}" 
+                  rows="3"
+                  maxlength="{{ block.settings.description_maxlength | default: 280 }}"></textarea>
+      </div>
+      {% endif %}
+
+      <div class="button-group">
+        <button type="button" class="btn btn-clear" id="clear-btn-{{ ai_gen_id }}">
+          {{ block.settings.clear_button_text | default: 'Clear' }}
+        </button>
+        <button type="button" class="btn btn-cart" id="cart-btn-{{ ai_gen_id }}" disabled>
+          {{ block.settings.add_to_cart_text | default: 'Add to Cart' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const ID = {{ ai_gen_id | json }};
+  const MAX_SIZE_MB = {{ block.settings.max_file_size | default: 10 | json }};
+  const PLACEHOLDER_TEXT = {{ block.settings.placeholder_text | json }};
+  {% comment %} https://shopify-upload.vercel.app/api/upload; {% endcomment %}
+  
+  const UPLOAD_ENDPOINT = 'https://shopify-upload.vercel.app/api/upload';
+
+  let variants = [];
+  let initialVariant = null;
+
+  {% if product and product.variants %}
+    variants = {{ product.variants | json }};
+  {% else %}
+    variants = [];
+  {% endif %}
+
+  {% if product and product.selected_or_first_available_variant %}
+    initialVariant = {{ product.selected_or_first_available_variant.id | json }};
+  {% else %}
+    initialVariant = null;
+  {% endif %}
+
+  let selectedFile = null;
+  let uploadedImageUrl = null;
+  let elements = {};
+
+  function initialize() {
+    console.log('Initializing photo upload...');
+    
+    elements = {
+      uploadArea: document.getElementById('upload-area-' + ID),
+      fileInput: document.getElementById('file-input-' + ID),
+      previewContainer: document.getElementById('preview-container-' + ID),
+      placeholder: document.getElementById('placeholder-' + ID),
+      fileInfo: document.getElementById('file-info-' + ID),
+      errorMsg: document.getElementById('error-msg-' + ID),
+      successMsg: document.getElementById('success-msg-' + ID),
+      uploadProgress: document.getElementById('upload-progress-' + ID),
+      sizeSelect: document.getElementById('size-select-' + ID),
+      descInput: document.getElementById('desc-input-' + ID),
+      clearBtn: document.getElementById('clear-btn-' + ID),
+      cartBtn: document.getElementById('cart-btn-' + ID)
+    };
+
+    if (!elements.uploadArea || !elements.fileInput) {
+      console.error('Required elements not found');
+      return;
+    }
+
+    bindEvents();
+    console.log('Photo upload ready');
+  }
+
+  function bindEvents() {
+    elements.uploadArea.addEventListener('click', function(e) {
+      if (e.target !== elements.fileInput) {
+        elements.fileInput.click();
+      }
+    });
+
+    elements.fileInput.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
+    elements.fileInput.addEventListener('change', function(e) {
+      if (e.target.files && e.target.files[0]) {
+        processFile(e.target.files[0]);
+      }
+    });
+
+    elements.uploadArea.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      elements.uploadArea.style.borderColor = '#3498db';
+      elements.uploadArea.style.backgroundColor = '#e3f2fd';
+    });
+
+    elements.uploadArea.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      elements.uploadArea.style.borderColor = '';
+      elements.uploadArea.style.backgroundColor = '';
+    });
+
+    elements.uploadArea.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      elements.uploadArea.style.borderColor = '';
+      elements.uploadArea.style.backgroundColor = '';
+      
+      const files = e.dataTransfer.files;
+      if (files && files[0]) {
+        processFile(files[0]);
+      }
+    });
+
+    elements.clearBtn.addEventListener('click', clearAll);
+    elements.cartBtn.addEventListener('click', handleAddToCart);
+  }
+
+  function processFile(file) {
+    console.log('Processing file:', file.name, file.type, file.size);
+    
+    hideAllMessages();
+
+    if (!file.type.startsWith('image/')) {
+      showError('Please select an image file (JPG, PNG, GIF)');
+      return;
+    }
+
+    const maxBytes = MAX_SIZE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      showError('File must be smaller than ' + MAX_SIZE_MB + ' MB');
+      return;
+    }
+
+    selectedFile = file;
+    showFileInfo(file);
+    createImagePreview(file);
+  }
+
+  function showFileInfo(file) {
+    const sizeKB = (file.size / 1024).toFixed(1);
+    if (elements.fileInfo) {
+      elements.fileInfo.innerHTML = '';
+      var strong = document.createElement('strong');
+      strong.textContent = 'Selected:';
+      elements.fileInfo.appendChild(strong);
+      var text = document.createTextNode(' ' + file.name + ' (' + sizeKB + ' KB)');
+      elements.fileInfo.appendChild(text);
+      elements.fileInfo.style.display = 'block';
+    }
+  }
+
+  function createImagePreview(file) {
+    showSuccess('Loading preview...');
+
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      console.log('File read complete, creating preview...');
+      
+      const img = document.createElement('img');
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '300px';
+      img.style.objectFit = 'contain';
+      img.style.borderRadius = '6px';
+      img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      img.style.display = 'block';
+      img.style.margin = '0 auto';
+      img.alt = 'Preview of your uploaded photo';
+      
+      img.onload = function() {
+        console.log('Preview image loaded successfully');
+        
+        elements.previewContainer.innerHTML = '';
+        elements.previewContainer.appendChild(img);
+        
+        elements.cartBtn.disabled = false;
+        
+        showSuccess('Image ready! Click "Add to Cart" to upload.');
+      };
+      
+      img.onerror = function() {
+        console.error('Failed to display image');
+        showError('Could not display image. Please try a different file.');
+        resetPreview();
+      };
+      
+      img.src = e.target.result;
+    };
+    
+    reader.onerror = function() {
+      console.error('File reading failed');
+      showError('Failed to read file. Please try again.');
+    };
+    
+    reader.readAsDataURL(file);
+  }
+
+  function resetPreview() {
+    if (!elements.previewContainer) return;
+    elements.previewContainer.innerHTML = '<div class="preview-placeholder"><svg class="upload-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg><p style="margin: 0; font-size: 16px;">' + PLACEHOLDER_TEXT + '</p></div>';
+    elements.placeholder = elements.previewContainer.querySelector('.preview-placeholder');
+  }
+
+  function clearAll() {
+    selectedFile = null;
+    uploadedImageUrl = null;
+    elements.fileInput.value = '';
+    resetPreview();
+    elements.fileInfo.style.display = 'none';
+    elements.cartBtn.disabled = true;
+    
+    if (elements.descInput) {
+      elements.descInput.value = '';
+    }
+    
+    hideAllMessages();
+  }
+
+  function handleAddToCart() {
+    if (!selectedFile) {
+      showError('Please upload an image first');
+      return;
+    }
+
+    elements.cartBtn.disabled = true;
+    uploadImageToServer();
+  }
+
+  function uploadImageToServer() {
+    showUploading('Uploading image to server...');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const imageData = e.target.result;
+
+      console.log('Uploading to:', UPLOAD_ENDPOINT);
+
+      fetch(UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          image: imageData
+        })
+      })
+      .then(function(response) {
+        console.log('Upload response status:', response.status);
+        return response.json().then(function(data) {
+          if (!response.ok) {
+            throw new Error(data.error || 'Upload failed');
+          }
+          return data;
+        });
+      })
+      .then(function(data) {
+        console.log('Upload response data:', data);
+        if (data.success && data.url) {
+          uploadedImageUrl = data.url;
+          showSuccess('Image uploaded successfully! Adding to cart...');
+          addToCart(data.url);
+        } else {
+          throw new Error(data.error || 'Upload failed - no URL returned');
+        }
+      })
+      .catch(function(error) {
+        console.error('Upload error:', error);
+        showError('Failed to upload image: ' + error.message);
+        elements.cartBtn.disabled = false;
+        hideUploading();
+      });
+    };
+
+    reader.onerror = function() {
+      showError('Failed to read file');
+      elements.cartBtn.disabled = false;
+      hideUploading();
+    };
+
+    reader.readAsDataURL(selectedFile);
+  }
+
+  function addToCart(imageUrl) {
+    let variantId = initialVariant;
+
+    if ((!variantId || variantId === null) && variants.length > 0) {
+      variantId = variants[0].id;
+    }
+
+    if (elements.sizeSelect && variants.length > 0) {
+      const size = elements.sizeSelect.value;
+      const variant = variants.find(function(v) {
+        return v.title && v.title.toLowerCase().includes(size + ' pieces');
+      });
+      if (variant) {
+        variantId = variant.id;
+      }
+    }
+
+    const cartData = {
+      id: variantId,
+      quantity: 1,
+      properties: {
+        'Custom Photo': imageUrl,
+        'Filename': selectedFile.name,
+        'Size': (elements.sizeSelect ? elements.sizeSelect.value : '100') + ' pieces'
+      }
+    };
+
+    if (elements.descInput && elements.descInput.value && elements.descInput.value.trim()) {
+      cartData.properties['Description'] = elements.descInput.value.trim();
+    }
+
+    function doAddToCart(withProperties) {
+      var sections = undefined;
+      try {
+        var cartEl = document.querySelector('cart-notification') || document.querySelector('cart-drawer');
+        if (cartEl && typeof cartEl.getSectionsToRender === 'function') {
+          sections = cartEl
+            .getSectionsToRender()
+            .map(function(s) {
+              return (s && s.section) || s.id;
+            });
+        }
+      } catch (e) {
+        sections = undefined;
+      }
+
+      var payload = Object.assign({}, cartData, { properties: withProperties });
+      var useFormData = sections && sections.length;
+
+      var fetchPromise;
+      if (useFormData) {
+        var form = new FormData();
+        form.append('id', payload.id);
+        form.append('quantity', payload.quantity);
+        Object.keys(payload.properties || {}).forEach(function(key) {
+          form.append('properties[' + key + ']', payload.properties[key]);
+        });
+        sections.forEach(function(s) { form.append('sections', s); });
+        form.append('sections_url', window.location.pathname);
+
+        console.log('photo-upload: submitting FormData to /cart/add.js', { sections: sections, payload: payload });
+        fetchPromise = fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          body: form
+        }).then(function(response) {
+          return response.text().then(function(text) {
+            var data = text && text.length ? JSON.parse(text) : {};
+            if (!response.ok) {
+              throw data;
+            }
+            return data;
+          });
+        });
+      } else {
+        var jsonPayload = Object.assign({}, payload);
+        console.log('photo-upload: submitting JSON to /cart/add.js', jsonPayload);
+        fetchPromise = fetch('/cart/add.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(jsonPayload)
+        }).then(function(response) {
+          return response.text().then(function(text) {
+            var data = text && text.length ? JSON.parse(text) : {};
+            if (!response.ok) {
+              throw data;
+            }
+            return data;
+          });
+        });
+      }
+
+      fetchPromise
+      .then(function(response) {
+        console.log('photo-upload: /cart/add.js response', response);
+        showSuccess('Added to cart successfully!');
+        hideUploading();
+
+        // Force cart drawer refresh and open
+        setTimeout(function() {
+          // Manually refresh cart drawer content
+          fetch('/cart?section_id=cart-drawer', { credentials: 'same-origin' })
+            .then(function(res) { return res.text(); })
+            .then(function(htmlText) {
+              try {
+                var parser = new DOMParser();
+                var parsed = parser.parseFromString(htmlText, 'text/html');
+                
+                // Update cart drawer items
+                var newCartDrawerItems = parsed.querySelector('cart-drawer-items');
+                var currentCartDrawerItems = document.querySelector('cart-drawer-items');
+                if (newCartDrawerItems && currentCartDrawerItems) {
+                  currentCartDrawerItems.innerHTML = newCartDrawerItems.innerHTML;
+                }
+                
+                // Update cart drawer footer
+                var newFooter = parsed.querySelector('.cart-drawer__footer');
+                var currentFooter = document.querySelector('.cart-drawer__footer');
+                if (newFooter && currentFooter) {
+                  currentFooter.innerHTML = newFooter.innerHTML;
+                }
+                
+                // Update cart count bubble
+                var newBubble = parsed.getElementById('cart-icon-bubble') || parsed.querySelector('.cart-icon-bubble');
+                var currentBubble = document.getElementById('cart-icon-bubble') || document.querySelector('.cart-icon-bubble');
+                if (newBubble && currentBubble) {
+                  currentBubble.innerHTML = newBubble.innerHTML;
+                }
+                
+                // Update empty state classes
+                var hasItems = (parsed.querySelector('.cart-item') !== null);
+                var cartDrawerEl = document.querySelector('cart-drawer');
+                if (cartDrawerEl) {
+                  if (hasItems) {
+                    cartDrawerEl.classList.remove('is-empty');
+                  } else {
+                    cartDrawerEl.classList.add('is-empty');
+                  }
+                }
+                
+                console.log('Cart drawer manually refreshed');
+              } catch (e) {
+                console.warn('Failed to manually refresh cart drawer:', e);
+              }
+            })
+            .catch(function(err) {
+              console.warn('Failed to fetch cart drawer section:', err);
+            });
+
+          // Try to open cart drawer
+          try {
+            var cartDrawer = document.querySelector('cart-drawer');
+            if (cartDrawer && typeof cartDrawer.open === 'function') {
+              cartDrawer.open();
+            } else {
+              // Fallback: trigger cart icon click
+              var cartIcon = document.querySelector('[data-action="open-cart"]') ||
+                           document.querySelector('.cart-icon') ||
+                           document.querySelector('[href="/cart"]') ||
+                           document.querySelector('.header__icon--cart');
+              if (cartIcon) {
+                cartIcon.click();
+              }
+            }
+          } catch (e) {
+            console.warn('Could not open cart drawer:', e);
+          }
+        }, 1000); // Increased delay to ensure cart is updated on server
+
+        try {
+          var cartElement = document.querySelector('cart-notification') || document.querySelector('cart-drawer');
+
+          if (cartElement) {
+            try {
+              if (typeof publish === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') {
+                publish(PUB_SUB_EVENTS.cartUpdate, {
+                  source: 'photo-upload',
+                  cartData: response,
+                }).catch(function() {});
+              }
+            } catch (e) {
+              console.warn('photo-upload: publish error', e);
+            }
+
+            // Skip renderContents for cart-drawer as it expects different response format
+            var didRender = false;
+            if (cartElement.tagName !== 'CART-DRAWER' && typeof cartElement.renderContents === 'function') {
+              try {
+                cartElement.renderContents(response);
+                didRender = true;
+              } catch (e) {
+                console.warn('photo-upload: cartElement.renderContents failed', e);
+                didRender = false;
+              }
+            }
+
+            if (!didRender && typeof cartElement.renderContents === 'function') {
+              try {
+                setTimeout(function() {
+                  try {
+                    cartElement.renderContents(response);
+                    didRender = true;
+                  } catch (e) {}
+                }, 120);
+              } catch (e) {}
+            }
+
+            if (!didRender && response && response.sections && typeof response.sections === 'object') {
+              try {
+                applySectionsFromResponse(response, cartElement);
+                didRender = true;
+              } catch (e) {
+                console.warn('photo-upload: applySectionsFromResponse failed', e);
+              }
+            }
+
+            if (!didRender || !response || !response.sections) {
+              try {
+                var sectionToRequest = cartElement.tagName === 'CART-DRAWER' ? 'cart-drawer' : 'main-cart-items';
+                fetch(window.routes && window.routes.cart_url ? (window.routes.cart_url + '?section_id=' + sectionToRequest) : '/cart?section_id=' + sectionToRequest, { credentials: 'same-origin' })
+                  .then(function(res) { return res.text(); })
+                  .then(function(htmlText) {
+                    try {
+                      var parsed = new DOMParser().parseFromString(htmlText, 'text/html');
+                      var sectionsToReplace = [];
+                      if (typeof cartElement.getSectionsToRender === 'function') {
+                        sectionsToReplace = cartElement.getSectionsToRender();
+                      } else {
+                        sectionsToReplace = [ { id: 'CartDrawer', selector: '#CartDrawer' }, { id: 'cart-icon-bubble', selector: '#cart-icon-bubble' } ];
+                      }
+
+                      sectionsToReplace.forEach(function(section) {
+                        var target = section.selector ? document.querySelector(section.selector) : document.getElementById(section.id);
+                        var source = null;
+                        if (section.selector) {
+                          source = parsed.querySelector(section.selector) || parsed.getElementById(section.id);
+                        } else {
+                          source = parsed.getElementById(section.id) || parsed.querySelector('#' + section.id);
+                        }
+                        if (target && source) {
+                          try {
+                            if (section.selector) {
+                              var srcInner = source.querySelector(section.selector) || source.querySelector('.shopify-section') || source;
+                              if (srcInner) {
+                                target.innerHTML = srcInner.innerHTML;
+                              } else {
+                                target.innerHTML = source.innerHTML;
+                              }
+                            } else {
+                              target.innerHTML = source.innerHTML;
+                            }
+                          } catch (e) {
+                            try { target.replaceWith(source); } catch (er) {}
+                          }
+                        }
+                      });
+                      try {
+                        var parsedDrawerInner = parsed.querySelector('#CartDrawer .drawer__inner') || parsed.querySelector('.drawer__inner');
+                        var liveDrawerInner = document.querySelector('#CartDrawer .drawer__inner') || document.querySelector('.drawer__inner');
+                        if (parsedDrawerInner && liveDrawerInner) {
+                          liveDrawerInner.innerHTML = parsedDrawerInner.innerHTML;
+                        }
+
+                        var parsedIcon = parsed.getElementById('cart-icon-bubble') || parsed.querySelector('.cart-icon-bubble');
+                        var liveIcon = document.getElementById('cart-icon-bubble') || document.querySelector('.cart-icon-bubble');
+                        if (parsedIcon && liveIcon) {
+                          liveIcon.innerHTML = parsedIcon.innerHTML;
+                        }
+
+                        var hasItems = (parsed.querySelector('.cart-item') !== null) || (parsed.querySelector('[data-cart-item]') !== null);
+                        var cartDrawerEl = document.querySelector('cart-drawer');
+                        var cartFooter = document.getElementById('main-cart-footer') || document.querySelector('.cart-drawer__footer');
+                        if (hasItems) {
+                          if (liveDrawerInner) liveDrawerInner.classList.remove('is-empty');
+                          if (cartDrawerEl) cartDrawerEl.classList.remove('is-empty');
+                          if (cartFooter) cartFooter.classList.remove('is-empty');
+                        }
+                      } catch (e) {}
+                      try {
+                        var newCartDrawer = document.querySelector('cart-drawer');
+                        if (newCartDrawer && typeof newCartDrawer.open === 'function') {
+                          newCartDrawer.open();
+                        } else {
+                          // Fallback: try to show cart drawer by triggering cart icon click
+                          var cartIcon = document.querySelector('[data-action="open-cart"]') || document.querySelector('.cart-icon') || document.querySelector('[href="/cart"]');
+                          if (cartIcon) {
+                            cartIcon.click();
+                          }
+                        }
+                      } catch (e) {
+                        console.warn('Could not open cart drawer:', e);
+                      }
+                    } catch (e) {
+                      console.warn('photo-upload: failed to parse/replace cart sections', e);
+                    }
+                  })
+                  .catch(function(err) {
+                    console.warn('photo-upload: fetching cart sections failed', err);
+                  });
+              } catch (e) {
+                console.warn('photo-upload: manual sections fetch failed', e);
+              }
+            }
+
+            return;
+          }
+        } catch (err) {
+          console.error('Cart update after add failed', err);
+        }
+
+        setTimeout(function() {
+          window.location.href = '/cart';
+        }, 1200);
+      })
+      .catch(function(error) {
+        console.error('Cart error:', error);
+        var message = 'Failed to add to cart. Please try again.';
+        if (error && (error.description || error.message)) {
+          message = error.description || error.message;
+        }
+        try { showError(message); } catch (e) {}
+        hideUploading();
+      })
+      .finally(function() {
+        if (elements.cartBtn) elements.cartBtn.disabled = false;
+      });
+    }
+
+    doAddToCart(cartData.properties);
+  }
+
+  function showUploading(message) {
+    if (elements.uploadProgress) {
+      elements.uploadProgress.querySelector('.upload-progress-text').textContent = message || 'Processing...';
+      elements.uploadProgress.style.display = 'flex';
+    }
+  }
+
+  function hideUploading() {
+    if (elements.uploadProgress) {
+      elements.uploadProgress.style.display = 'none';
+    }
+  }
+
+  function applySectionsFromResponse(response, cartElement) {
+    if (!response || !response.sections) return;
+    var sectionsObj = response.sections;
+    var sectionsToRender = [];
+    if (cartElement && typeof cartElement.getSectionsToRender === 'function') {
+      sectionsToRender = cartElement.getSectionsToRender();
+    } else {
+      sectionsToRender = cartElement && cartElement.tagName === 'CART-DRAWER' 
+        ? [{ id: 'CartDrawer', selector: '#CartDrawer' }, { id: 'cart-icon-bubble', selector: '#cart-icon-bubble' }]
+        : [{ id: 'CartDrawer', selector: '#CartDrawer' }, { id: 'cart-icon-bubble', selector: '#cart-icon-bubble' }];
+    }
+
+    sectionsToRender.forEach(function(section) {
+      try {
+        var key = section.section || section.id;
+        var html = sectionsObj[key] || sectionsObj[section.id] || null;
+        if (!html) {
+          Object.keys(sectionsObj).some(function(k) {
+            if (k && k.toLowerCase().indexOf(String(key).toLowerCase()) !== -1) {
+              html = sectionsObj[k];
+              return true;
+            }
+          });
+        }
+
+        if (html) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          var target = section.selector ? document.querySelector(section.selector) : document.getElementById(section.id);
+          if (target) {
+            var innerSrc = null;
+            try { innerSrc = tmp.querySelector(section.selector) || tmp.querySelector('.shopify-section') || tmp; } catch (e) { innerSrc = tmp; }
+            if (innerSrc) target.innerHTML = innerSrc.innerHTML; else target.innerHTML = tmp.innerHTML;
+          }
+        }
+      } catch (e) {}
+    });
+
+    try {
+      var cnt = typeof response.item_count !== 'undefined' ? response.item_count : (response.cart && response.cart.item_count);
+      if (typeof cnt !== 'undefined') {
+        var liveBubbles = document.querySelectorAll('.cart-count-bubble span, #cart-icon-bubble span');
+        Array.prototype.forEach.call(liveBubbles, function(b) { b.textContent = String(cnt); });
+      }
+    } catch (e) {}
+  }
+
+  function showError(message) {
+    elements.errorMsg.textContent = message;
+    elements.errorMsg.style.display = 'block';
+    elements.successMsg.style.display = 'none';
+  }
+
+  function showSuccess(message) {
+    elements.successMsg.textContent = message;
+    elements.successMsg.style.display = 'block';
+    elements.errorMsg.style.display = 'none';
+  }
+
+  function hideAllMessages() {
+    elements.errorMsg.style.display = 'none';
+    elements.successMsg.style.display = 'none';
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+  } else {
+    initialize();
+  }
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Photo Upload",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "Upload Your Photo"
+    },
+    {
+      "type": "text",
+      "id": "description",
+      "label": "Description",
+      "default": "Create a custom puzzle with your favorite photo"
+    },
+    {
+      "type": "text",
+      "id": "placeholder_text",
+      "label": "Placeholder text",
+      "default": "Your photo will appear here"
+    },
+    {
+      "type": "text",
+      "id": "upload_text",
+      "label": "Upload text", 
+      "default": "Click to upload or drag and drop"
+    },
+    {
+      "type": "text",
+      "id": "upload_subtext",
+      "label": "Upload area subtext",
+      "default": "JPG, PNG or GIF (max 10MB)"
+    },
+    {
+      "type": "range",
+      "id": "max_file_size",
+      "min": 1,
+      "max": 50,
+      "step": 1,
+      "unit": "MB",
+      "label": "Maximum file size",
+      "default": 10
+    },
+    {
+      "type": "checkbox",
+      "id": "show_size_option",
+      "label": "Show size option",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_description", 
+      "label": "Show description field",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "description_label",
+      "label": "Description label",
+      "default": "Description / Notes for your puzzle"
+    },
+    {
+      "type": "text",
+      "id": "description_placeholder",
+      "label": "Description placeholder", 
+      "default": "Tell us anything we should know (cropping, text on puzzle, gift note, etc.)"
+    },
+    {
+      "type": "range",
+      "id": "description_maxlength",
+      "min": 50,
+      "max": 500,
+      "step": 10,
+      "label": "Description max length",
+      "default": 280
+    },
+    {
+      "type": "text",
+      "id": "clear_button_text",
+      "label": "Clear button text",
+      "default": "Clear"
+    },
+    {
+      "type": "text", 
+      "id": "add_to_cart_text",
+      "label": "Add to cart button text",
+      "default": "Add to Cart"
+    },
+    {
+      "type": "header",
+      "content": "Styling"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_color",
+      "label": "Primary button color",
+      "default": "#007bff"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_text_color",
+      "label": "Primary button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_text_color",
+      "label": "Secondary button text color",
+      "default": "#6c757d"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_border_color",
+      "label": "Secondary button border color",
+      "default": "#dee2e6"
+    },
+    {
+      "type": "color",
+      "id": "secondary_button_hover_color",
+      "label": "Secondary button hover color",
+      "default": "#f8f9fa"
+    },
+    {
+      "type": "color",
+      "id": "primary_button_hover_color",
+      "label": "Primary button hover color",
+      "default": "#2980b9"
+    },
+    {
+      "type": "color",
+      "id": "upload_background_color",
+      "label": "Upload background color",
+      "default": "#f8f9fa"
+    },
+    {
+      "type": "color",
+      "id": "upload_background_hover_color",
+      "label": "Upload background hover color",
+      "default": "#e3f2fd"
+    },
+    {
+      "type": "color",
+      "id": "upload_border_color",
+      "label": "Upload border color",
+      "default": "#dee2e6"
+    },
+    {
+      "type": "color",
+      "id": "upload_border_hover_color",
+      "label": "Upload border hover color",
+      "default": "#3498db"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#cbd5e0"
+    },
+    {
+      "type": "color",
+      "id": "placeholder_text_color",
+      "label": "Placeholder text color",
+      "default": "#7f8c8d"
+    },
+    {
+      "type": "color",
+      "id": "input_border_color",
+      "label": "Input border color",
+      "default": "#e1e5e9"
+    },
+    {
+      "type": "color",
+      "id": "success_color",
+      "label": "Success color",
+      "default": "#e8f5e8"
+    },
+    {
+      "type": "color",
+      "id": "error_color",
+      "label": "Error color",
+      "default": "#c33"
+    },
+    {
+      "type": "range",
+      "id": "title_size",
+      "min": 16,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "label": "Title size",
+      "default": 28
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Description size",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "unit": "px", 
+      "label": "Border radius",
+      "default": 12
+    }
+  ]
+}
+{% endschema %}
