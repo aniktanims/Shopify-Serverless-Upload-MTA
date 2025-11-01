@@ -1,0 +1,67 @@
+# Vercel Deployment Ignore File
+# This file tells Vercel which files/folders NOT to upload during deployment
+
+# Environment and config files
+.env
+.env.local
+.env.production
+.env.development
+
+# Development and test files
+test-*.js
+test-*.bat
+test-*.html
+rate-limit-test.html
+
+# Documentation files (not needed in production)
+*.md
+readme.md
+README.md
+SECURITY_README.md
+CLEANUP_GUIDE.md
+RATE_LIMIT_TEST_README.md
+
+# Theme/Shopify files (not needed for serverless functions)
+*.liquid
+cart-drawer.liquid
+email.liquid
+frontend.liquid
+Theme File/
+Theme*/
+
+# Cart and frontend JS (if not used in API)
+cart.js
+
+# Node modules (Vercel installs these automatically)
+node_modules/
+
+# Git and version control
+.git/
+.gitignore
+
+# Vercel deployment artifacts
+.vercel/
+
+# Test images
+test-image.jpg
+*.jpg
+*.png
+*.gif
+*.webp
+
+# Development scripts
+run_upload_test.js
+test_results.json
+upload_test_result.json
+path_probe_results.json
+response.json
+response-tiny.json
+upload_response*.json
+upload_error*.json
+shopify_direct_error.json
+
+# Keep only essential files for deployment:
+# - api/ (serverless functions)
+# - package.json (dependencies)
+# - vercel.json (configuration)
+# - .vercelignore (this file)

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Limit Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .description {
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+    }
+
+    .test-section h3 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: #6c757d;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .result.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+
+    .result.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .result.warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+    }
+
+    .result-details {
+      margin-top: 10px;
+      max-height: 400px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    .progress {
+      margin-top: 10px;
+      width: 100%;
+      height: 20px;
+      background: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .stat {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .code-block {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Rate Limit Test</h1>
+    <p class="description">
+      Test the rate limiting functionality that allows maximum 50 uploads per hour per IP address.
+      This helps prevent spam attacks and protects your Shopify store from abuse.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-number" id="totalRequests">0</span>
+        <span class="stat-label">Total Requests</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" id="successfulUploads">0</span>
+        <span class="stat-label">Successful</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" id="rateLimited">0</span>
+        <span class="stat-label">Rate Limited</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" id="remainingQuota">50</span>
+        <span class="stat-label">Remaining</span>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h3>🚀 Quick Test (Upload 5 Images)</h3>
+      <p>Test with a small batch to verify rate limiting works.</p>
+      <button id="quickTestBtn">Run Quick Test (5 uploads)</button>
+    </div>
+
+    <div class="test-section">
+      <h3>⚡ Stress Test (Upload 60 Images)</h3>
+      <p>Test the full rate limit by attempting 60 uploads (should hit limit after 50).</p>
+      <button id="stressTestBtn">Run Stress Test (60 uploads)</button>
+    </div>
+
+    <div class="test-section">
+      <h3>🎯 Custom Test</h3>
+      <p>Upload a specific number of images to test rate limiting.</p>
+      <div class="form-group">
+        <label for="customCount">Number of uploads to attempt:</label>
+        <input type="number" id="customCount" value="55" min="1" max="100">
+      </div>
+      <button id="customTestBtn">Run Custom Test</button>
+    </div>
+
+    <div class="test-section">
+      <h3>🔍 Manual Test</h3>
+      <p>Test a single upload to see rate limit headers.</p>
+      <button id="singleTestBtn">Test Single Upload</button>
+    </div>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="result" id="result"></div>
+
+    <div class="test-section">
+      <h3>📋 API Testing Commands</h3>
+      <p>Use these curl commands to test rate limiting from command line:</p>
+
+      <div class="code-block">
+        <pre># Test single upload
+curl -X POST https://your-project.vercel.app/api/upload \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"test.jpg","image":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="}'
+
+# Test rate limit headers
+curl -I https://your-project.vercel.app/api/upload
+
+# Bulk test (run multiple times)
+for i in {1..55}; do
+  echo "Upload $i"
+  curl -s -X POST https://your-project.vercel.app/api/upload \
+    -H "Content-Type: application/json" \
+    -d '{"filename":"test'$i'.jpg","image":"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="}' | grep -E "(success|error|Rate limit)"
+  sleep 0.1
+done</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Test data - small 1x1 pixel JPEG in base64
+    const testImageData = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
+
+    let totalRequests = 0;
+    let successfulUploads = 0;
+    let rateLimited = 0;
+    let remainingQuota = 50;
+    let isRunning = false;
+
+    const resultDiv = document.getElementById('result');
+    const progress = document.getElementById('progress');
+    const progressBar = document.getElementById('progressBar');
+
+    function updateStats() {
+      document.getElementById('totalRequests').textContent = totalRequests;
+      document.getElementById('successfulUploads').textContent = successfulUploads;
+      document.getElementById('rateLimited').textContent = rateLimited;
+      document.getElementById('remainingQuota').textContent = remainingQuota;
+    }
+
+    function showResult(type, message, details = '') {
+      resultDiv.className = `result ${type}`;
+      resultDiv.innerHTML = message.split('\n').join('<br>') + (details ? `<div class="result-details">${details}</div>` : '');
+      resultDiv.style.display = 'block';
+    }
+
+    function resetStats() {
+      totalRequests = 0;
+      successfulUploads = 0;
+      rateLimited = 0;
+      remainingQuota = 50;
+      updateStats();
+    }
+
+    async function uploadTestImage(filename) {
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filename: filename,
+            image: testImageData
+          })
+        });
+
+        const data = await response.json();
+        totalRequests++;
+
+        // Update rate limit info from headers
+        const limit = response.headers.get('X-RateLimit-Limit');
+        const remaining = response.headers.get('X-RateLimit-Remaining');
+
+        if (remaining !== null) {
+          remainingQuota = parseInt(remaining);
+        }
+
+        if (data.success) {
+          successfulUploads++;
+          return { success: true, data, headers: { limit, remaining } };
+        } else if (data.error === 'Rate limit exceeded') {
+          rateLimited++;
+          return { success: false, rateLimited: true, data, headers: { limit, remaining } };
+        } else {
+          return { success: false, error: data.error, data, headers: { limit, remaining } };
+        }
+      } catch (error) {
+        totalRequests++;
+        return { success: false, error: error.message };
+      }
+    }
+
+    async function runTest(uploadCount, testName) {
+      if (isRunning) return;
+      isRunning = true;
+
+      resetStats();
+      resultDiv.style.display = 'none';
+      progress.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      const results = [];
+      let completed = 0;
+
+      for (let i = 1; i <= uploadCount; i++) {
+        if (!isRunning) break; // Allow cancellation
+
+        const filename = `test_${Date.now()}_${i}.jpg`;
+        const result = await uploadTestImage(filename);
+        results.push({ attempt: i, ...result });
+
+        completed++;
+        const progressPercent = (completed / uploadCount) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+
+        updateStats();
+
+        // Small delay to avoid overwhelming the server
+        if (i < uploadCount) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      progress.style.display = 'none';
+      isRunning = false;
+
+      // Analyze results
+      const successful = results.filter(r => r.success).length;
+      const rateLimitedCount = results.filter(r => r.rateLimited).length;
+      const errors = results.filter(r => !r.success && !r.rateLimited).length;
+
+      let message = `✅ ${testName} Complete!\n\n`;
+      message += `📊 Results:\n`;
+      message += `• Total attempts: ${uploadCount}\n`;
+      message += `• Successful uploads: ${successful}\n`;
+      message += `• Rate limited: ${rateLimitedCount}\n`;
+      message += `• Other errors: ${errors}\n\n`;
+
+      if (rateLimitedCount > 0) {
+        message += `🎯 Rate limiting is working! Blocked ${rateLimitedCount} requests after ${successful} successful uploads.\n\n`;
+      } else if (uploadCount <= 50) {
+        message += `✅ All uploads successful - rate limit not triggered yet.\n\n`;
+      } else {
+        message += `⚠️ No rate limiting detected. Check if the feature is deployed.\n\n`;
+      }
+
+      // Show detailed results
+      let details = 'Detailed Results:\n';
+      results.slice(0, 20).forEach(r => {
+        const status = r.success ? '✅' : r.rateLimited ? '🚫 Rate Limited' : '❌ Error';
+        details += `${r.attempt}. ${status}`;
+        if (r.headers && r.headers.remaining !== null) {
+          details += ` (Remaining: ${r.headers.remaining})`;
+        }
+        details += '\n';
+      });
+
+      if (results.length > 20) {
+        details += `\n... and ${results.length - 20} more results`;
+      }
+
+      showResult(rateLimitedCount > 0 ? 'success' : 'warning', message, details);
+    }
+
+    // Event listeners
+    document.getElementById('quickTestBtn').addEventListener('click', () => {
+      runTest(5, 'Quick Test');
+    });
+
+    document.getElementById('stressTestBtn').addEventListener('click', () => {
+      runTest(60, 'Stress Test');
+    });
+
+    document.getElementById('customTestBtn').addEventListener('click', () => {
+      const count = parseInt(document.getElementById('customCount').value);
+      if (count > 0 && count <= 100) {
+        runTest(count, `Custom Test (${count} uploads)`);
+      } else {
+        showResult('error', 'Please enter a number between 1 and 100');
+      }
+    });
+
+    document.getElementById('singleTestBtn').addEventListener('click', async () => {
+      resetStats();
+      resultDiv.style.display = 'none';
+
+      const result = await uploadTestImage(`single_test_${Date.now()}.jpg`);
+      updateStats();
+
+      let message = '🔍 Single Upload Test Results:\n\n';
+
+      if (result.success) {
+        message += '✅ Upload successful!\n';
+      } else if (result.rateLimited) {
+        message += '🚫 Rate limited!\n';
+      } else {
+        message += '❌ Upload failed!\n';
+      }
+
+      if (result.headers) {
+        message += `\n📊 Rate Limit Headers:\n`;
+        message += `• Limit: ${result.headers.limit || 'N/A'}\n`;
+        message += `• Remaining: ${result.headers.remaining || 'N/A'}\n`;
+      }
+
+      if (result.data) {
+        message += `\n📄 Response: ${JSON.stringify(result.data, null, 2)}`;
+      }
+
+      showResult(result.success ? 'success' : result.rateLimited ? 'warning' : 'error', message);
+    });
+
+    // Initialize
+    updateStats();
+  </script>
+</body>
+</html>

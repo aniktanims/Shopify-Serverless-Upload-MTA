@@ -2,7 +2,11 @@
   "functions": {
     "api/upload.js": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 30
+    },
+    "api/remove.js": {
+      "memory": 512,
+      "maxDuration": 60
     }
   },
   "headers": [
