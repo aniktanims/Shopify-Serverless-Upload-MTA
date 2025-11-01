@@ -695,9 +695,23 @@
         showSuccess('Added to cart successfully!');
         hideUploading();
 
-        // Force cart drawer refresh and open
-        setTimeout(function() {
-          // Manually refresh cart drawer content
+        // Improved cart drawer refresh and open logic for mobile devices
+        var cartDrawer = document.querySelector('cart-drawer');
+        
+        // Trigger cart update event first
+        try {
+          if (typeof publish === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') {
+            publish(PUB_SUB_EVENTS.cartUpdate, {
+              source: 'photo-upload',
+              cartData: response,
+            }).catch(function() {});
+          }
+        } catch (e) {
+          console.warn('photo-upload: publish error', e);
+        }
+
+        // Refresh cart drawer content with improved mobile compatibility
+        if (cartDrawer) {
           fetch('/cart?section_id=cart-drawer', { credentials: 'same-origin' })
             .then(function(res) { return res.text(); })
             .then(function(htmlText) {
@@ -705,18 +719,11 @@
                 var parser = new DOMParser();
                 var parsed = parser.parseFromString(htmlText, 'text/html');
                 
-                // Update cart drawer items
-                var newCartDrawerItems = parsed.querySelector('cart-drawer-items');
-                var currentCartDrawerItems = document.querySelector('cart-drawer-items');
-                if (newCartDrawerItems && currentCartDrawerItems) {
-                  currentCartDrawerItems.innerHTML = newCartDrawerItems.innerHTML;
-                }
-                
-                // Update cart drawer footer
-                var newFooter = parsed.querySelector('.cart-drawer__footer');
-                var currentFooter = document.querySelector('.cart-drawer__footer');
-                if (newFooter && currentFooter) {
-                  currentFooter.innerHTML = newFooter.innerHTML;
+                // Update the entire drawer inner content for consistency
+                var newDrawerInner = parsed.querySelector('.drawer__inner');
+                var currentDrawerInner = cartDrawer.querySelector('.drawer__inner');
+                if (newDrawerInner && currentDrawerInner) {
+                  currentDrawerInner.innerHTML = newDrawerInner.innerHTML;
                 }
                 
                 // Update cart count bubble
@@ -728,188 +735,54 @@
                 
                 // Update empty state classes
                 var hasItems = (parsed.querySelector('.cart-item') !== null);
-                var cartDrawerEl = document.querySelector('cart-drawer');
-                if (cartDrawerEl) {
-                  if (hasItems) {
-                    cartDrawerEl.classList.remove('is-empty');
-                  } else {
-                    cartDrawerEl.classList.add('is-empty');
-                  }
+                if (hasItems) {
+                  cartDrawer.classList.remove('is-empty');
+                  if (currentDrawerInner) currentDrawerInner.classList.remove('is-empty');
+                } else {
+                  cartDrawer.classList.add('is-empty');
                 }
                 
                 console.log('Cart drawer manually refreshed');
+                
+                // Use requestAnimationFrame to ensure DOM is fully updated before opening
+                // This is critical for mobile browsers (especially iOS Safari)
+                requestAnimationFrame(function() {
+                  requestAnimationFrame(function() {
+                    // Double RAF ensures paint is complete
+                    if (cartDrawer && typeof cartDrawer.open === 'function') {
+                      cartDrawer.open();
+                    }
+                  });
+                });
               } catch (e) {
                 console.warn('Failed to manually refresh cart drawer:', e);
+                // Fallback: still try to open
+                if (cartDrawer && typeof cartDrawer.open === 'function') {
+                  requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                      cartDrawer.open();
+                    });
+                  });
+                }
               }
             })
             .catch(function(err) {
               console.warn('Failed to fetch cart drawer section:', err);
-            });
-
-          // Try to open cart drawer
-          try {
-            var cartDrawer = document.querySelector('cart-drawer');
-            if (cartDrawer && typeof cartDrawer.open === 'function') {
-              cartDrawer.open();
-            } else {
-              // Fallback: trigger cart icon click
-              var cartIcon = document.querySelector('[data-action="open-cart"]') ||
-                           document.querySelector('.cart-icon') ||
-                           document.querySelector('[href="/cart"]') ||
-                           document.querySelector('.header__icon--cart');
-              if (cartIcon) {
-                cartIcon.click();
-              }
-            }
-          } catch (e) {
-            console.warn('Could not open cart drawer:', e);
-          }
-        }, 1000); // Increased delay to ensure cart is updated on server
-
-        try {
-          var cartElement = document.querySelector('cart-notification') || document.querySelector('cart-drawer');
-
-          if (cartElement) {
-            try {
-              if (typeof publish === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') {
-                publish(PUB_SUB_EVENTS.cartUpdate, {
-                  source: 'photo-upload',
-                  cartData: response,
-                }).catch(function() {});
-              }
-            } catch (e) {
-              console.warn('photo-upload: publish error', e);
-            }
-
-            // Skip renderContents for cart-drawer as it expects different response format
-            var didRender = false;
-            if (cartElement.tagName !== 'CART-DRAWER' && typeof cartElement.renderContents === 'function') {
-              try {
-                cartElement.renderContents(response);
-                didRender = true;
-              } catch (e) {
-                console.warn('photo-upload: cartElement.renderContents failed', e);
-                didRender = false;
-              }
-            }
-
-            if (!didRender && typeof cartElement.renderContents === 'function') {
-              try {
-                setTimeout(function() {
-                  try {
-                    cartElement.renderContents(response);
-                    didRender = true;
-                  } catch (e) {}
-                }, 120);
-              } catch (e) {}
-            }
-
-            if (!didRender && response && response.sections && typeof response.sections === 'object') {
-              try {
-                applySectionsFromResponse(response, cartElement);
-                didRender = true;
-              } catch (e) {
-                console.warn('photo-upload: applySectionsFromResponse failed', e);
-              }
-            }
-
-            if (!didRender || !response || !response.sections) {
-              try {
-                var sectionToRequest = cartElement.tagName === 'CART-DRAWER' ? 'cart-drawer' : 'main-cart-items';
-                fetch(window.routes && window.routes.cart_url ? (window.routes.cart_url + '?section_id=' + sectionToRequest) : '/cart?section_id=' + sectionToRequest, { credentials: 'same-origin' })
-                  .then(function(res) { return res.text(); })
-                  .then(function(htmlText) {
-                    try {
-                      var parsed = new DOMParser().parseFromString(htmlText, 'text/html');
-                      var sectionsToReplace = [];
-                      if (typeof cartElement.getSectionsToRender === 'function') {
-                        sectionsToReplace = cartElement.getSectionsToRender();
-                      } else {
-                        sectionsToReplace = [ { id: 'CartDrawer', selector: '#CartDrawer' }, { id: 'cart-icon-bubble', selector: '#cart-icon-bubble' } ];
-                      }
-
-                      sectionsToReplace.forEach(function(section) {
-                        var target = section.selector ? document.querySelector(section.selector) : document.getElementById(section.id);
-                        var source = null;
-                        if (section.selector) {
-                          source = parsed.querySelector(section.selector) || parsed.getElementById(section.id);
-                        } else {
-                          source = parsed.getElementById(section.id) || parsed.querySelector('#' + section.id);
-                        }
-                        if (target && source) {
-                          try {
-                            if (section.selector) {
-                              var srcInner = source.querySelector(section.selector) || source.querySelector('.shopify-section') || source;
-                              if (srcInner) {
-                                target.innerHTML = srcInner.innerHTML;
-                              } else {
-                                target.innerHTML = source.innerHTML;
-                              }
-                            } else {
-                              target.innerHTML = source.innerHTML;
-                            }
-                          } catch (e) {
-                            try { target.replaceWith(source); } catch (er) {}
-                          }
-                        }
-                      });
-                      try {
-                        var parsedDrawerInner = parsed.querySelector('#CartDrawer .drawer__inner') || parsed.querySelector('.drawer__inner');
-                        var liveDrawerInner = document.querySelector('#CartDrawer .drawer__inner') || document.querySelector('.drawer__inner');
-                        if (parsedDrawerInner && liveDrawerInner) {
-                          liveDrawerInner.innerHTML = parsedDrawerInner.innerHTML;
-                        }
-
-                        var parsedIcon = parsed.getElementById('cart-icon-bubble') || parsed.querySelector('.cart-icon-bubble');
-                        var liveIcon = document.getElementById('cart-icon-bubble') || document.querySelector('.cart-icon-bubble');
-                        if (parsedIcon && liveIcon) {
-                          liveIcon.innerHTML = parsedIcon.innerHTML;
-                        }
-
-                        var hasItems = (parsed.querySelector('.cart-item') !== null) || (parsed.querySelector('[data-cart-item]') !== null);
-                        var cartDrawerEl = document.querySelector('cart-drawer');
-                        var cartFooter = document.getElementById('main-cart-footer') || document.querySelector('.cart-drawer__footer');
-                        if (hasItems) {
-                          if (liveDrawerInner) liveDrawerInner.classList.remove('is-empty');
-                          if (cartDrawerEl) cartDrawerEl.classList.remove('is-empty');
-                          if (cartFooter) cartFooter.classList.remove('is-empty');
-                        }
-                      } catch (e) {}
-                      try {
-                        var newCartDrawer = document.querySelector('cart-drawer');
-                        if (newCartDrawer && typeof newCartDrawer.open === 'function') {
-                          newCartDrawer.open();
-                        } else {
-                          // Fallback: try to show cart drawer by triggering cart icon click
-                          var cartIcon = document.querySelector('[data-action="open-cart"]') || document.querySelector('.cart-icon') || document.querySelector('[href="/cart"]');
-                          if (cartIcon) {
-                            cartIcon.click();
-                          }
-                        }
-                      } catch (e) {
-                        console.warn('Could not open cart drawer:', e);
-                      }
-                    } catch (e) {
-                      console.warn('photo-upload: failed to parse/replace cart sections', e);
-                    }
-                  })
-                  .catch(function(err) {
-                    console.warn('photo-upload: fetching cart sections failed', err);
+              // Fallback: still try to open with proper timing
+              if (cartDrawer && typeof cartDrawer.open === 'function') {
+                requestAnimationFrame(function() {
+                  requestAnimationFrame(function() {
+                    cartDrawer.open();
                   });
-              } catch (e) {
-                console.warn('photo-upload: manual sections fetch failed', e);
+                });
               }
-            }
-
-            return;
-          }
-        } catch (err) {
-          console.error('Cart update after add failed', err);
+            });
+        } else {
+          // No cart drawer found, prevent redirect to /cart
+          console.warn('Cart drawer not found in DOM');
         }
 
-        setTimeout(function() {
-          window.location.href = '/cart';
-        }, 1200);
+        // Prevent any fallback redirects - cart drawer has been handled above
       })
       .catch(function(error) {
         console.error('Cart error:', error);

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remove Images - Admin Panel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+      color: #856404;
+    }
+    
+    .warning strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+    
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .hint {
+      font-size: 13px;
+      color: #888;
+      margin-top: 5px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+    
+    .result.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    
+    .result.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    .result-details {
+      margin-top: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    .file-item {
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .file-item:last-child {
+      border-bottom: none;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗑️ Remove Images</h1>
+    <p style="color: #666; margin-bottom: 20px;">Admin panel to remove images from Shopify</p>
+    
+    <div class="warning">
+      <strong>⚠️ Warning</strong>
+      This action is irreversible. All images matching the pattern will be permanently deleted from Shopify.
+    </div>
+    
+    <form id="removeForm">
+      <div class="form-group">
+        <label for="searchPattern">Search Pattern</label>
+        <input 
+          type="text" 
+          id="searchPattern" 
+          name="searchPattern" 
+          placeholder="e.g., Thomas_Family or CP"
+          value="Thomas_Family"
+          required
+        >
+        <div class="hint">Enter text to search for in image filenames (case-insensitive, min 2 characters)</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="adminPassword">Admin Password</label>
+        <input 
+          type="password" 
+          id="adminPassword" 
+          name="adminPassword" 
+          placeholder="Enter admin password"
+          required
+        >
+        <div class="hint">Set ADMIN_PASSWORD in your Vercel environment variables</div>
+      </div>
+      
+      <button type="submit" id="submitBtn">
+        Remove Images
+      </button>
+    </form>
+    
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('removeForm');
+    const resultDiv = document.getElementById('result');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const searchPattern = document.getElementById('searchPattern').value.trim();
+      const adminPassword = document.getElementById('adminPassword').value;
+      
+      if (!searchPattern || !adminPassword) {
+        showResult('error', 'Please fill in all fields');
+        return;
+      }
+      
+      if (searchPattern.length < 2) {
+        showResult('error', 'Search pattern must be at least 2 characters long');
+        return;
+      }
+      
+      // Confirm action
+      const confirmMsg = `Are you sure you want to remove ALL images containing "${searchPattern}" in their filename?\n\nThis action cannot be undone.`;
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span>Removing images...';
+      resultDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/remove', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            searchPattern,
+            adminPassword
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          let message = `✅ ${data.message}\n\nFiles removed: ${data.filesRemoved}`;
+          
+          let detailsHTML = '';
+          if (data.details && data.details.length > 0) {
+            detailsHTML = '<div class="result-details">';
+            detailsHTML += '<strong>Removed files:</strong><br>';
+            data.details.forEach(file => {
+              if (file.deleted) {
+                detailsHTML += `<div class="file-item">✓ ${file.alt || file.id}</div>`;
+              }
+            });
+            detailsHTML += '</div>';
+          }
+          
+          showResult('success', message, detailsHTML);
+        } else {
+          showResult('error', `❌ ${data.error}\n${data.message || ''}`);
+        }
+        
+      } catch (error) {
+        showResult('error', `❌ Network error: ${error.message}`);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Remove Images';
+      }
+    });
+    
+    function showResult(type, message, detailsHTML = '') {
+      resultDiv.className = `result ${type}`;
+      resultDiv.innerHTML = message.split('\n').join('<br>') + detailsHTML;
+      resultDiv.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

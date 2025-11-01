@@ -12,6 +12,56 @@ const config = {
   maxDuration: 30,
 };
 
+// Rate limiting: In-memory store (resets on deployment/restart)
+// For production, consider using Redis or a database
+const rateLimitStore = new Map();
+const RATE_LIMIT = 50; // Max uploads per hour
+const RATE_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+
+function getRateLimitKey(ip) {
+  return `ratelimit:${ip}`;
+}
+
+function checkRateLimit(ip) {
+  const key = getRateLimitKey(ip);
+  const now = Date.now();
+  
+  if (!rateLimitStore.has(key)) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + RATE_WINDOW });
+    return { allowed: true, remaining: RATE_LIMIT - 1 };
+  }
+  
+  const record = rateLimitStore.get(key);
+  
+  // Reset if window has passed
+  if (now > record.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + RATE_WINDOW });
+    return { allowed: true, remaining: RATE_LIMIT - 1 };
+  }
+  
+  // Check if limit exceeded
+  if (record.count >= RATE_LIMIT) {
+    const timeRemaining = Math.ceil((record.resetTime - now) / 1000 / 60); // minutes
+    return { allowed: false, remaining: 0, resetIn: timeRemaining };
+  }
+  
+  // Increment count
+  record.count += 1;
+  rateLimitStore.set(key, record);
+  
+  return { allowed: true, remaining: RATE_LIMIT - record.count };
+}
+
+// Clean up old entries periodically to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000); // Clean every 5 minutes
+
 // Polling function to wait for MediaImage processing
 async function pollForMediaReady(shop, token, fileId, maxWaitMs = 15000, pollIntervalMs = 1000) {
   const startTime = Date.now();
@@ -117,6 +167,31 @@ async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
+  // Get client IP address
+  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || 
+             req.headers['x-real-ip'] || 
+             req.connection?.remoteAddress || 
+             'unknown';
+  
+  console.log('Request from IP:', ip);
+
+  // Check rate limit
+  const rateLimitResult = checkRateLimit(ip);
+  
+  // Add rate limit headers
+  res.setHeader('X-RateLimit-Limit', RATE_LIMIT.toString());
+  res.setHeader('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+  
+  if (!rateLimitResult.allowed) {
+    console.warn(`Rate limit exceeded for IP: ${ip}, reset in ${rateLimitResult.resetIn} minutes`);
+    return res.status(429).json({ 
+      success: false, 
+      error: 'Rate limit exceeded', 
+      message: `You have exceeded the maximum of ${RATE_LIMIT} uploads per hour. Please try again in ${rateLimitResult.resetIn} minutes.`,
+      resetIn: rateLimitResult.resetIn 
+    });
+  }
+
   try {
     // Get shop and token from environment variables
     const shop = process.env.SHOPIFY_SHOP;
@@ -133,6 +208,9 @@ async function handler(req, res) {
     if (!filename || !image) {
       return res.status(400).json({ success: false, error: 'Missing filename or image data' });
     }
+
+    // Add "CP" prefix to filename for easy identification and cleanup
+    const prefixedFilename = `CP_${filename}`;
 
     // Validate base64 image data
     if (!image.startsWith('data:image/')) {
@@ -151,7 +229,7 @@ async function handler(req, res) {
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, 'base64');
 
-    console.log('Processing upload:', { filename, contentType, size: buffer.length, shop: shop });
+    console.log('Processing upload:', { originalFilename: filename, prefixedFilename, contentType, size: buffer.length, shop: shop });
 
     // Step 1: Create staged upload
     const stagedUploadMutation = `
@@ -176,7 +254,7 @@ async function handler(req, res) {
     const stagedUploadVariables = {
       input: [
         {
-          filename: filename,
+          filename: prefixedFilename,
           mimeType: contentType,
           resource: 'IMAGE',
           fileSize: buffer.length.toString(),
@@ -282,7 +360,7 @@ async function handler(req, res) {
       }
     `;
 
-    const fileCreateVariables = { files: [{ alt: filename, contentType: 'IMAGE', originalSource: stagedTarget.resourceUrl }] };
+    const fileCreateVariables = { files: [{ alt: prefixedFilename, contentType: 'IMAGE', originalSource: stagedTarget.resourceUrl }] };
 
     console.log('stagedTarget.resourceUrl:', stagedTarget.resourceUrl);
     console.log('fileCreateVariables:', fileCreateVariables);
